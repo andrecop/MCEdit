@@ -36,7 +36,10 @@ Download and install Python 3.12 from here: https://www.python.org/downloads/rel
 "Windows installer (64-bit)" is the one you want if you're on Windows.
 
 Open the MCEdit folder in a command prompt and install dependencies by running:  
-`py -m pip install -r requirements.txt`  
+`py -3.12 -m pip install -r requirements.txt`  
 
 Then launch the editor with:  
-`py mcedit.py`  
+`py -3.12 mcedit.py`  
+
+If fails, upgrade pip:
+`py -3.12 -m pip install --upgrade pip setuptools wheel`
