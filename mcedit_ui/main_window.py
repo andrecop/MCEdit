@@ -77,6 +77,10 @@ class MCEditorWindow(QMainWindow):
     self.ui.verticalLayout_2.insertWidget(1, self.btn_export_image)
     self.btn_export_image.clicked.connect(self.export_room_image)
     
+    self.btn_export_area_sprites = QPushButton("Export Area Sprites")
+    self.ui.verticalLayout_2.insertWidget(2, self.btn_export_area_sprites)
+    self.btn_export_area_sprites.clicked.connect(self.export_area_sprites)
+    
     self.room_graphics_scene = ClickableGraphicsScene()
     self.ui.room_graphics_view.setScene(self.room_graphics_scene)
     self.ui.room_graphics_view.setFocus()
@@ -191,6 +195,7 @@ class MCEditorWindow(QMainWindow):
     for action_name in self.MENU_ACTIONS_THAT_REQUIRE_PROJECT_TO_BE_LOADED:
       getattr(self.ui, action_name).setEnabled(False)
     self.btn_export_image.setEnabled(False)
+    self.btn_export_area_sprites.setEnabled(False)
     self.btn_export_bg2_tileset.setEnabled(False)
     self.btn_export_bg1_tileset.setEnabled(False)
   
@@ -198,6 +203,7 @@ class MCEditorWindow(QMainWindow):
     for action_name in self.MENU_ACTIONS_THAT_REQUIRE_PROJECT_TO_BE_LOADED:
       getattr(self.ui, action_name).setEnabled(True)
     self.btn_export_image.setEnabled(True)
+    self.btn_export_area_sprites.setEnabled(True)
     self.btn_export_bg2_tileset.setEnabled(True)
     self.btn_export_bg1_tileset.setEnabled(True)
   
@@ -853,6 +859,118 @@ class MCEditorWindow(QMainWindow):
       
     if not image.save(file_path):
       QMessageBox.critical(self, "Error", "Failed to save image to %s" % file_path)
+  
+  def render_and_save_scene(self, file_path):
+    cursor_visible = False
+    if self.selected_tiles_cursor is not None:
+      cursor_visible = self.selected_tiles_cursor.isVisible()
+      self.selected_tiles_cursor.hide()
+      
+    image = QImage(self.room.width, self.room.height, QImage.Format_ARGB32)
+    image.fill(Qt.transparent)
+    
+    painter = QPainter(image)
+    painter.setRenderHint(QPainter.Antialiasing)
+    self.room_graphics_scene.render(painter, QRectF(image.rect()), QRectF(0, 0, self.room.width, self.room.height))
+    painter.end()
+    
+    if cursor_visible and self.selected_tiles_cursor is not None:
+      self.selected_tiles_cursor.show()
+      
+    image.save(file_path)
+
+  def export_area_sprites(self):
+    if self.area is None:
+      return
+      
+    dir_path = QFileDialog.getExistingDirectory(self, "Select Directory to Export Area Sprites")
+    if not dir_path:
+      return
+      
+    area_name = AREA_INDEX_TO_NAME[self.area_index]
+    clean_area_name = "".join(c for c in area_name if c.isalnum() or c in (' ', '_', '-')).strip()
+    area_folder_name = "%02X %s" % (self.area_index, clean_area_name)
+    area_dir = os.path.join(dir_path, area_folder_name)
+    os.makedirs(area_dir, exist_ok=True)
+    
+    original_room_index = self.room_index
+    
+    progress = QProgressDialog("Exporting area sprites...", "Cancel", 0, len(self.area.rooms), self)
+    progress.setWindowModality(Qt.WindowModal)
+    progress.show()
+    
+    for r_idx, room in enumerate(self.area.rooms):
+      if progress.wasCanceled():
+        break
+      progress.setValue(r_idx)
+      if room is None:
+        continue
+        
+      room_folder_name = "%02X_%02X" % (self.area_index, r_idx)
+      room_dir = os.path.join(area_dir, room_folder_name)
+      os.makedirs(room_dir, exist_ok=True)
+      
+      try:
+        self.room_index_changed(r_idx)
+        QApplication.processEvents()
+        
+        vis_bg1 = self.layer_bg1_view_item.isVisible()
+        vis_bg2 = self.layer_bg2_view_item.isVisible()
+        vis_bg3 = self.layer_bg3_view_item.isVisible()
+        vis_ent = self.entities_view_item.isVisible()
+        vis_tile = self.tile_entities_view_item.isVisible()
+        vis_exits = self.exits_view_item.isVisible()
+        
+        prefix = "%02X_%02X_" % (self.area_index, r_idx)
+        
+        self.layer_bg1_view_item.setVisible(True)
+        self.layer_bg2_view_item.setVisible(False)
+        self.layer_bg3_view_item.setVisible(False)
+        self.entities_view_item.setVisible(False)
+        self.tile_entities_view_item.setVisible(False)
+        self.exits_view_item.setVisible(False)
+        self.render_and_save_scene(os.path.join(room_dir, prefix + "bg1.png"))
+        
+        self.layer_bg1_view_item.setVisible(False)
+        self.layer_bg2_view_item.setVisible(True)
+        self.layer_bg3_view_item.setVisible(False)
+        self.entities_view_item.setVisible(False)
+        self.tile_entities_view_item.setVisible(False)
+        self.exits_view_item.setVisible(False)
+        self.render_and_save_scene(os.path.join(room_dir, prefix + "bg2.png"))
+        
+        self.layer_bg1_view_item.setVisible(True)
+        self.layer_bg2_view_item.setVisible(True)
+        self.layer_bg3_view_item.setVisible(True)
+        self.entities_view_item.setVisible(True)
+        self.tile_entities_view_item.setVisible(True)
+        self.exits_view_item.setVisible(True)
+        self.render_and_save_scene(os.path.join(room_dir, prefix + "entities.png"))
+        
+        self.layer_bg1_view_item.setVisible(vis_bg1)
+        self.layer_bg2_view_item.setVisible(vis_bg2)
+        self.layer_bg3_view_item.setVisible(vis_bg3)
+        self.entities_view_item.setVisible(vis_ent)
+        self.tile_entities_view_item.setVisible(vis_tile)
+        self.exits_view_item.setVisible(vis_exits)
+        
+        if not self.bg1_tileset_graphics_scene.tileset_graphics_item.pixmap().isNull():
+          self.bg1_tileset_graphics_scene.tileset_graphics_item.pixmap().save(
+            os.path.join(room_dir, prefix + "tileset_bg1.png")
+          )
+        if not self.bg2_tileset_graphics_scene.tileset_graphics_item.pixmap().isNull():
+          self.bg2_tileset_graphics_scene.tileset_graphics_item.pixmap().save(
+            os.path.join(room_dir, prefix + "tileset_bg2.png")
+          )
+      except Exception as e:
+        print(f"Error exporting room {r_idx}: {e}")
+        
+    progress.setValue(len(self.area.rooms))
+    
+    try:
+      self.room_index_changed(original_room_index)
+    except Exception:
+      pass
   
   def export_bg2_tileset(self):
     self.export_tileset(self.bg2_tileset_graphics_scene, "bg2")
