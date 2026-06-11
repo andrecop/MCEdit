@@ -4,6 +4,7 @@ from PySide6.QtCore import *
 from PySide6.QtWidgets import *
 
 import traceback
+import os
 
 from mcedit_ui.uic.ui_sprite_editor import Ui_SpriteEditor
 
@@ -30,6 +31,11 @@ class SpriteEditorDialog(QDialog):
     
     self.sprite_graphics_scene = ClickableGraphicsScene()
     self.ui.sprite_graphics_view.setScene(self.sprite_graphics_scene)
+    
+    self.btn_export = QPushButton("Export Sprite Frames")
+    self.ui.buttonBox.addButton(self.btn_export, QDialogButtonBox.ActionRole)
+    self.btn_export.clicked.connect(self.export_sprite_frames)
+    self.btn_export.setEnabled(False)
     
     self.ui.enemy_list.currentRowChanged.connect(self.enemy_changed)
     self.ui.object_list.currentRowChanged.connect(self.object_changed)
@@ -131,9 +137,11 @@ class SpriteEditorDialog(QDialog):
     self.loading_data = SpriteLoadingData(type, subtype, form, self.rom)
     if self.loading_data.has_no_sprite:
       self.sprite = None
+      self.btn_export.setEnabled(False)
       return
     
     self.sprite = Sprite(self.loading_data.sprite_index, self.rom)
+    self.btn_export.setEnabled(True)
     
     # TODO: how to determine number of anims and frames?
     num_frames = 0xFF
@@ -192,3 +200,33 @@ class SpriteEditorDialog(QDialog):
     item = GraphicsImageItem(frame_image, x_off, y_off, draw_border=False)
     item.setPos(x_off, y_off)
     self.sprite_graphics_scene.addItem(item)
+  
+  def export_sprite_frames(self):
+    if self.sprite is None:
+      return
+      
+    dir_path = QFileDialog.getExistingDirectory(self, "Select Directory to Export Frames")
+    if not dir_path:
+      return
+      
+    entity_name = Docs.get_name_for_entity("entity", self.type, self.subtype, self.form)
+    clean_name = "".join(c for c in entity_name if c.isalnum() or c in (' ', '_', '-')).strip()
+    folder_name = "%02X_%02X_%02X_%s" % (self.type, self.subtype, self.form, clean_name)
+    export_dir = os.path.join(dir_path, folder_name)
+    os.makedirs(export_dir, exist_ok=True)
+    
+    exported_count = 0
+    for frame_index in range(256):
+      try:
+        frame_image, x_off, y_off = self.renderer.render_entity_frame(self.loading_data, frame_index, (0, 0), [])
+        if frame_image is not None:
+          file_path = os.path.join(export_dir, "frame_%02X.png" % frame_index)
+          frame_image.save(file_path)
+          exported_count += 1
+      except Exception:
+        pass
+        
+    if exported_count > 0:
+      QMessageBox.information(self, "Success", "Exported %d frames to %s" % (exported_count, export_dir))
+    else:
+      QMessageBox.warning(self, "Warning", "No frames were successfully exported.")
