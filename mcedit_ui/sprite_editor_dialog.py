@@ -217,6 +217,8 @@ class SpriteEditorDialog(QDialog):
       return
       
     entity_name = Docs.get_name_for_entity("entity", self.type, self.subtype, self.form)
+    if entity_name is None:
+      entity_name = ""
     clean_name = "".join(c for c in entity_name if c.isalnum() or c in (' ', '_', '-')).strip()
     folder_name = "%02X_%02X_%02X_%s" % (self.type, self.subtype, self.form, clean_name)
     export_dir = os.path.join(dir_path, folder_name)
@@ -251,6 +253,8 @@ class SpriteEditorDialog(QDialog):
       
     item_text = list_widget.item(row).text()
     entity_name = item_text[7:]
+    if entity_name is None:
+      entity_name = ""
     clean_entity_name = "".join(c for c in entity_name if c.isalnum() or c in (' ', '_', '-')).strip()
     root_folder_name = "%03d - %s" % (row + 1, clean_entity_name)
     
@@ -266,6 +270,8 @@ class SpriteEditorDialog(QDialog):
     
     for other_form in forms:
       form_name = Docs.get_name_for_entity_form("entity", self.type, self.subtype, other_form)
+      if form_name is None:
+        form_name = ""
       clean_form_name = "".join(c for c in form_name if c.isalnum() or c in (' ', '_', '-')).strip()
       form_folder_name = "%02X_%02X_%02X_%s" % (self.type, self.subtype, other_form, clean_form_name)
       form_dir = os.path.join(export_dir, form_folder_name)
