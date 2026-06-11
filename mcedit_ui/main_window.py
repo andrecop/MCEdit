@@ -971,6 +971,36 @@ class MCEditorWindow(QMainWindow):
       self.room_index_changed(original_room_index)
     except Exception:
       pass
+      
+    # Render and save minimaps
+    if self.selected_room_graphics_item is not None:
+      self.selected_room_graphics_item.show()
+      
+    map_rect = self.map_graphics_scene.itemsBoundingRect()
+    map_w, map_h = int(map_rect.width()), int(map_rect.height())
+    
+    if map_w > 0 and map_h > 0:
+      # 1. Export highlighted minimap
+      highlighted_image = QImage(map_w, map_h, QImage.Format_ARGB32)
+      highlighted_image.fill(Qt.transparent)
+      painter = QPainter(highlighted_image)
+      self.map_graphics_scene.render(painter, QRectF(highlighted_image.rect()), map_rect)
+      painter.end()
+      highlighted_image.save(os.path.join(area_dir, "minimap_highlighted.png"))
+      
+      # 2. Export normal minimap (hide the highlight)
+      if self.selected_room_graphics_item is not None:
+        self.selected_room_graphics_item.hide()
+      normal_image = QImage(map_w, map_h, QImage.Format_ARGB32)
+      normal_image.fill(Qt.transparent)
+      painter = QPainter(normal_image)
+      self.map_graphics_scene.render(painter, QRectF(normal_image.rect()), map_rect)
+      painter.end()
+      normal_image.save(os.path.join(area_dir, "minimap.png"))
+      
+      # Restore highlight visibility
+      if self.selected_room_graphics_item is not None:
+        self.selected_room_graphics_item.show()
   
   def export_bg2_tileset(self):
     self.export_tileset(self.bg2_tileset_graphics_scene, "bg2")
