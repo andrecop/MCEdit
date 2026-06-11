@@ -281,9 +281,9 @@ class MCEditorWindow(QMainWindow):
   def initialize_dropdowns(self):
     self.ui.area_index.clear()
     self.ui.room_index.clear()
-    for area in self.game.areas:
+    for idx, area in enumerate(self.game.areas):
       area_name = AREA_INDEX_TO_NAME[area.area_index]
-      self.ui.area_index.addItem("%02X %s" % (area.area_index, area_name))
+      self.ui.area_index.addItem("%03d %s" % (idx + 1, area_name))
     
     try:
       if "last_area_index" in self.settings:
@@ -887,9 +887,9 @@ class MCEditorWindow(QMainWindow):
     if not dir_path:
       return
       
-    area_name = AREA_INDEX_TO_NAME[self.area_index]
+    area_name = AREA_INDEX_TO_NAME[self.area.area_index]
     clean_area_name = "".join(c for c in area_name if c.isalnum() or c in (' ', '_', '-')).strip()
-    area_folder_name = "%02X %s" % (self.area_index, clean_area_name)
+    area_folder_name = "%03d %s" % (self.area_index + 1, clean_area_name)
     area_dir = os.path.join(dir_path, area_folder_name)
     os.makedirs(area_dir, exist_ok=True)
     
