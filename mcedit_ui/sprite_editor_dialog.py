@@ -266,6 +266,8 @@ class SpriteEditorDialog(QDialog):
     os.makedirs(export_dir, exist_ok=True)
     
     forms = Docs.get_all_forms_for_subtype("entity", self.type, self.subtype)
+    if not forms:
+      forms = [0]
     exported_count = 0
     
     for other_form in forms:
