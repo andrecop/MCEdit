@@ -90,8 +90,16 @@ class MCEditorWindow(QMainWindow):
     
     self.bg2_tileset_graphics_scene = TilesetGraphicsScene(self)
     self.ui.bg2_tileset_graphics_view.setScene(self.bg2_tileset_graphics_scene)
+    self.btn_export_bg2_tileset = QPushButton("Export BG2 Tileset")
+    self.ui.verticalLayout_7.addWidget(self.btn_export_bg2_tileset)
+    self.btn_export_bg2_tileset.clicked.connect(self.export_bg2_tileset)
+    
     self.bg1_tileset_graphics_scene = TilesetGraphicsScene(self)
     self.ui.bg1_tileset_graphics_view.setScene(self.bg1_tileset_graphics_scene)
+    self.btn_export_bg1_tileset = QPushButton("Export BG1 Tileset")
+    self.ui.verticalLayout_8.addWidget(self.btn_export_bg1_tileset)
+    self.btn_export_bg1_tileset.clicked.connect(self.export_bg1_tileset)
+    
     self.selected_tileset_graphics_scene = None
     
     self.ui.right_sidebar.currentChanged.connect(self.update_edit_mode_by_current_tab)
@@ -183,11 +191,15 @@ class MCEditorWindow(QMainWindow):
     for action_name in self.MENU_ACTIONS_THAT_REQUIRE_PROJECT_TO_BE_LOADED:
       getattr(self.ui, action_name).setEnabled(False)
     self.btn_export_image.setEnabled(False)
+    self.btn_export_bg2_tileset.setEnabled(False)
+    self.btn_export_bg1_tileset.setEnabled(False)
   
   def enable_menu_actions_when_project_loaded(self):
     for action_name in self.MENU_ACTIONS_THAT_REQUIRE_PROJECT_TO_BE_LOADED:
       getattr(self.ui, action_name).setEnabled(True)
     self.btn_export_image.setEnabled(True)
+    self.btn_export_bg2_tileset.setEnabled(True)
+    self.btn_export_bg1_tileset.setEnabled(True)
   
   def start_new_project(self):
     default_dir = None
@@ -841,6 +853,27 @@ class MCEditorWindow(QMainWindow):
       
     if not image.save(file_path):
       QMessageBox.critical(self, "Error", "Failed to save image to %s" % file_path)
+  
+  def export_bg2_tileset(self):
+    self.export_tileset(self.bg2_tileset_graphics_scene, "bg2")
+
+  def export_bg1_tileset(self):
+    self.export_tileset(self.bg1_tileset_graphics_scene, "bg1")
+
+  def export_tileset(self, scene, layer_name):
+    if self.room is None or scene.tileset_graphics_item.pixmap().isNull():
+      return
+    
+    default_filename = "%02X_%02X_tileset_%s.png" % (self.area_index, self.room_index, layer_name)
+    file_path, _ = QFileDialog.getSaveFileName(
+      self, "Save Tileset Image", default_filename, "PNG Files (*.png);;All Files (*)"
+    )
+    if not file_path:
+      return
+      
+    pixmap = scene.tileset_graphics_item.pixmap()
+    if not pixmap.save(file_path):
+      QMessageBox.critical(self, "Error", "Failed to save tileset to %s" % file_path)
   
   def keyPressEvent(self, event):
     if event.key() == Qt.Key_Escape:
