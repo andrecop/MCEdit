@@ -220,6 +220,8 @@ class SpriteEditorDialog(QDialog):
     if entity_name is None:
       entity_name = ""
     clean_name = "".join(c for c in entity_name if c.isalnum() or c in (' ', '_', '-')).strip()
+    if not clean_name or clean_name.replace("-", "").strip() == "":
+      clean_name = "-undefined-"
     folder_name = "%02X_%02X_%02X_%s" % (self.type, self.subtype, self.form, clean_name)
     export_dir = os.path.join(dir_path, folder_name)
     os.makedirs(export_dir, exist_ok=True)
@@ -256,6 +258,8 @@ class SpriteEditorDialog(QDialog):
     if entity_name is None:
       entity_name = ""
     clean_entity_name = "".join(c for c in entity_name if c.isalnum() or c in (' ', '_', '-')).strip()
+    if not clean_entity_name or clean_entity_name.replace("-", "").strip() == "":
+      clean_entity_name = "-undefined-"
     root_folder_name = "%03d - %s" % (row + 1, clean_entity_name)
     
     dir_path = QFileDialog.getExistingDirectory(self, "Select Directory to Export All Forms")
@@ -275,6 +279,8 @@ class SpriteEditorDialog(QDialog):
       if form_name is None:
         form_name = ""
       clean_form_name = "".join(c for c in form_name if c.isalnum() or c in (' ', '_', '-')).strip()
+      if not clean_form_name or clean_form_name.replace("-", "").strip() == "":
+        clean_form_name = "-undefined-"
       form_folder_name = "%02X_%02X_%02X_%s" % (self.type, self.subtype, other_form, clean_form_name)
       form_dir = os.path.join(export_dir, form_folder_name)
       os.makedirs(form_dir, exist_ok=True)
