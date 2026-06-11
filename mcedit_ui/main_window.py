@@ -281,9 +281,9 @@ class MCEditorWindow(QMainWindow):
   def initialize_dropdowns(self):
     self.ui.area_index.clear()
     self.ui.room_index.clear()
-    for idx, area in enumerate(self.game.areas):
+    for area in self.game.areas:
       area_name = AREA_INDEX_TO_NAME[area.area_index]
-      self.ui.area_index.addItem("%03d %s" % (idx + 1, area_name))
+      self.ui.area_index.addItem("%02X %s" % (area.area_index, area_name))
     
     try:
       if "last_area_index" in self.settings:
@@ -593,7 +593,7 @@ class MCEditorWindow(QMainWindow):
       return
   
   def save_any_unsaved_changes_for_all_layers(self):
-    if self.room is None:
+    if self.room is None or self.room.layers_asset_list is None:
       return
     
     try:
@@ -889,7 +889,18 @@ class MCEditorWindow(QMainWindow):
       
     area_name = AREA_INDEX_TO_NAME[self.area.area_index]
     clean_area_name = "".join(c for c in area_name if c.isalnum() or c in (' ', '_', '-')).strip()
-    area_folder_name = "%03d %s" % (self.area_index + 1, clean_area_name)
+    if not clean_area_name:
+      clean_area_name = "-undefined-"
+    valid_areas = []
+    for a in self.game.areas:
+      name = AREA_INDEX_TO_NAME.get(a.area_index, "")
+      if "[Invalid]" not in name and not name.strip().startswith("("):
+        valid_areas.append(a)
+    try:
+      area_num = valid_areas.index(self.area) + 1
+    except ValueError:
+      area_num = self.area.area_index + 1
+    area_folder_name = ("%03d %s" % (area_num, clean_area_name)).strip()
     area_dir = os.path.join(dir_path, area_folder_name)
     os.makedirs(area_dir, exist_ok=True)
     
