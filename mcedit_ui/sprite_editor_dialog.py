@@ -37,6 +37,11 @@ class SpriteEditorDialog(QDialog):
     self.btn_export.clicked.connect(self.export_sprite_frames)
     self.btn_export.setEnabled(False)
     
+    self.btn_export_all_forms = QPushButton("Export All Forms")
+    self.ui.horizontalLayout_2.addWidget(self.btn_export_all_forms)
+    self.btn_export_all_forms.clicked.connect(self.export_all_forms)
+    self.btn_export_all_forms.setEnabled(False)
+    
     self.ui.enemy_list.currentRowChanged.connect(self.enemy_changed)
     self.ui.object_list.currentRowChanged.connect(self.object_changed)
     self.ui.npc_list.currentRowChanged.connect(self.npc_changed)
@@ -138,10 +143,12 @@ class SpriteEditorDialog(QDialog):
     if self.loading_data.has_no_sprite:
       self.sprite = None
       self.btn_export.setEnabled(False)
+      self.btn_export_all_forms.setEnabled(False)
       return
     
     self.sprite = Sprite(self.loading_data.sprite_index, self.rom)
     self.btn_export.setEnabled(True)
+    self.btn_export_all_forms.setEnabled(True)
     
     # TODO: how to determine number of anims and frames?
     num_frames = 0xFF
@@ -228,5 +235,57 @@ class SpriteEditorDialog(QDialog):
         
     if exported_count > 0:
       QMessageBox.information(self, "Success", "Exported %d frames to %s" % (exported_count, export_dir))
+    else:
+      QMessageBox.warning(self, "Warning", "No frames were successfully exported.")
+      
+  def export_all_forms(self):
+    if self.sprite is None:
+      return
+      
+    list_widget = self.type_to_list_widget.get(self.type)
+    if list_widget is None:
+      return
+    row = list_widget.currentRow()
+    if row < 0:
+      return
+      
+    item_text = list_widget.item(row).text()
+    entity_name = item_text[7:]
+    clean_entity_name = "".join(c for c in entity_name if c.isalnum() or c in (' ', '_', '-')).strip()
+    root_folder_name = "%03d - %s" % (row + 1, clean_entity_name)
+    
+    dir_path = QFileDialog.getExistingDirectory(self, "Select Directory to Export All Forms")
+    if not dir_path:
+      return
+      
+    export_dir = os.path.join(dir_path, root_folder_name)
+    os.makedirs(export_dir, exist_ok=True)
+    
+    forms = Docs.get_all_forms_for_subtype("entity", self.type, self.subtype)
+    exported_count = 0
+    
+    for other_form in forms:
+      form_name = Docs.get_name_for_entity_form("entity", self.type, self.subtype, other_form)
+      clean_form_name = "".join(c for c in form_name if c.isalnum() or c in (' ', '_', '-')).strip()
+      form_folder_name = "%02X_%02X_%02X_%s" % (self.type, self.subtype, other_form, clean_form_name)
+      form_dir = os.path.join(export_dir, form_folder_name)
+      os.makedirs(form_dir, exist_ok=True)
+      
+      loading_data = SpriteLoadingData(self.type, self.subtype, other_form, self.rom)
+      if loading_data.has_no_sprite:
+        continue
+        
+      for frame_index in range(256):
+        try:
+          frame_image, x_off, y_off = self.renderer.render_entity_frame(loading_data, frame_index, (0, 0), [])
+          if frame_image is not None:
+            file_path = os.path.join(form_dir, "frame_%02X.png" % frame_index)
+            frame_image.save(file_path)
+            exported_count += 1
+        except Exception:
+          pass
+          
+    if exported_count > 0:
+      QMessageBox.information(self, "Success", "Exported all forms to %s" % export_dir)
     else:
       QMessageBox.warning(self, "Warning", "No frames were successfully exported.")
