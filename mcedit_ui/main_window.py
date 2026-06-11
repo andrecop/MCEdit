@@ -73,6 +73,10 @@ class MCEditorWindow(QMainWindow):
     
     self.ui.scrollArea.setFrameShape(QFrame.NoFrame)
     
+    self.btn_export_image = QPushButton("Export Room Image")
+    self.ui.verticalLayout_2.insertWidget(1, self.btn_export_image)
+    self.btn_export_image.clicked.connect(self.export_room_image)
+    
     self.room_graphics_scene = ClickableGraphicsScene()
     self.ui.room_graphics_view.setScene(self.room_graphics_scene)
     self.ui.room_graphics_view.setFocus()
@@ -178,10 +182,12 @@ class MCEditorWindow(QMainWindow):
   def disable_menu_actions_when_no_project_loaded(self):
     for action_name in self.MENU_ACTIONS_THAT_REQUIRE_PROJECT_TO_BE_LOADED:
       getattr(self.ui, action_name).setEnabled(False)
+    self.btn_export_image.setEnabled(False)
   
   def enable_menu_actions_when_project_loaded(self):
     for action_name in self.MENU_ACTIONS_THAT_REQUIRE_PROJECT_TO_BE_LOADED:
       getattr(self.ui, action_name).setEnabled(True)
+    self.btn_export_image.setEnabled(True)
   
   def start_new_project(self):
     default_dir = None
@@ -806,6 +812,35 @@ class MCEditorWindow(QMainWindow):
     popen_process = subprocess.Popen([emulator_path, output_rom_path])
     self.last_emulator_process = psutil.Process(popen_process.pid)
   
+  def export_room_image(self):
+    if self.room is None:
+      return
+    
+    default_filename = "%02X_%02X_room.png" % (self.area_index, self.room_index)
+    file_path, _ = QFileDialog.getSaveFileName(
+      self, "Save Room Image", default_filename, "PNG Files (*.png);;All Files (*)"
+    )
+    if not file_path:
+      return
+      
+    cursor_visible = False
+    if self.selected_tiles_cursor is not None:
+      cursor_visible = self.selected_tiles_cursor.isVisible()
+      self.selected_tiles_cursor.hide()
+      
+    image = QImage(self.room.width, self.room.height, QImage.Format_ARGB32)
+    image.fill(Qt.transparent)
+    
+    painter = QPainter(image)
+    painter.setRenderHint(QPainter.Antialiasing)
+    self.room_graphics_scene.render(painter, QRectF(image.rect()), QRectF(0, 0, self.room.width, self.room.height))
+    painter.end()
+    
+    if cursor_visible and self.selected_tiles_cursor is not None:
+      self.selected_tiles_cursor.show()
+      
+    if not image.save(file_path):
+      QMessageBox.critical(self, "Error", "Failed to save image to %s" % file_path)
   
   def keyPressEvent(self, event):
     if event.key() == Qt.Key_Escape:
